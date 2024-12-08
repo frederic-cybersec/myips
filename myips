@@ -1,0 +1,64 @@
+#! /bin/bash
+
+B="\e[01m"
+R="\e[00m"
+U="\e[04m"
+C="\e[02;37m"
+I="\e[03m"
+
+HELP="
+"$B$U"USAGE$R$B:$R
+    "$B"myips$R\tdisplay WAN & LAN IPv4 addresses
+    "$B"myips 6$R\tdisplay IPv6 addresses
+    "$B"myips a$R\tdisplay IPv4 & IPv6 addresses
+    "$B"myips help$R\tdisplay this help and exit
+
+
+"$C$I"MIT License ⚖️ Copyright (c) 2024 Frederic Fernández
+https://www.github.com/frederic-cybersec 🐈‍⬛🩶☆
+📮frederic.cybersec@gmail.com$R
+"
+if [[ -n $1 ]] && [[ $1 != a ]] && [[ $1 != all ]] && [[ $1 != 6 ]]; then echo -e "$HELP";exit;fi
+
+
+WANIP=$(dig @resolver4.opendns.com myip.opendns.com +short 2> /dev/null)
+if [ $? != 0 ]; then WANIP="[IPv4 not found]";fi
+WANIP6=$(dig +short -6 myip.opendns.com aaaa @resolver1.ipv6-sandbox.opendns.com 2> /dev/null)
+if [ $? != 0 ]; then WANIP6="[IPv6 not found]";fi
+
+LANIP=($(ip a | grep -oE "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/[0-9]{1,2}"))
+LANIP6=($(ip a | grep "inet6" | cut -d' ' -f6))
+TOTAL=$((${#LANIP[@]}-1))
+TOTAL6=$((${#LANIP6[@]}-1))
+
+IFACE=($(ip a | grep -B3 -E "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/[0-9]{1,2}" | grep -E "^[0-9]" | cut -d' ' -f2))
+
+
+if [ -z $1 ]; then
+    printf "$B%15s %s\n$R" "WAN:" "$WANIP"
+    for i in $(seq 0 $TOTAL); do
+        if [[ ${LANIP[$i]} != "127.0.0.1/8" ]]; then
+            printf "%15s %s\n" "${IFACE[$i]}" "${LANIP[$i]}"
+        fi
+    done
+else
+    case $1 in
+    6)
+        printf "$B%15s %s\n$R" "WAN:" "$WANIP6"
+        for i in $(seq 0 $TOTAL6); do
+            if [[ ${LANIP[$i]} != "127.0.0.1/8" ]]; then
+                printf "%15s %s\n" "${IFACE[$i]}" "${LANIP6[$i]}"
+            fi
+        done
+    ;;
+    a|all)
+        printf "$B%15s %-20s %s\n$R" "WAN:" "$WANIP" "$WANIP6"
+        for i in $(seq 0 $TOTAL6); do
+            if [[ ${LANIP[$i]} != "127.0.0.1/8" ]]; then
+                printf "%15s %-20s %s\n" "${IFACE[$i]}" "${LANIP[$i]}" "${LANIP6[$i]}"
+            fi
+        done
+    ;;
+    esac
+fi
+echo ""
